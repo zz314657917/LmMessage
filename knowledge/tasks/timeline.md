@@ -1,5 +1,15 @@
 # Timeline
 
+## 2026-06-27 03:05 +08:00 - 第二轮 QA 复测
+
+- 当前阶段：代码级和服务端加载复测继续通过；客户端连接链路仍阻塞 AX 实机输入/HUD 验证。
+- 本段重点：`gradle test/build` 再次 PASS；本地构建 jar 与测试服部署 jar SHA256 一致；`arcartx-dev-1201` 服务端日志再次确认 `LmMessage` 启用、AX chat/hud 注册为 true、PlayerChat 后端可用。
+- 已完成：dev-stack MySQL/Redis preflight 通过；BlackBoxPro server-only ensure 到 plugin HTTP ready；带客户端 ensure 已复测并抓到 `DisconnectedScreen` / `Player not available` 证据；stop 后释放 `25715/38230/38231`，无匹配 Java 进程残留。
+- 关键决策：第二轮仍只认定服务端加载和 AX UI 注册通过，不把客户端渲染、AX chat submit 或 PlayerChat 跨服规则列为已验证。
+- 验证记录：`gradle test --no-daemon` PASS；`gradle build --no-daemon` PASS；`Test-LmDevStack.ps1` PASS；`Invoke-TestCell1201.ps1 -Mode ensure -NoAutoStartBot` 服务端/plugin HTTP ready；`Invoke-TestCell1201.ps1 -Mode ensure` bot/mod HTTP ready 但连接失败；`Invoke-TestCell1201.ps1 -Mode stop` PASS。
+- 遗留问题：`bot_player` 登录到 `localhost:25715` 后服务端记录 `lost connection: Disconnected`，客户端保持 `DisconnectedScreen`；因此 `/lmmessage open/test`、AX HUD 截图、聊天提交和跨服规则仍未验证。
+- 下一步：优先排查测试客户端连接失败 -> 成功入服后执行 `/lmmessage debug/open/test` -> 再验证 AX packet/chat submit 与 PlayerChat 跨服业务规则。
+
 ## 2026-06-27 02:50 +08:00 - 首轮 QA 与测试服加载验证
 
 - 当前阶段：代码级验证和服务端加载 smoke 通过；客户端 AX 画面与聊天提交链路仍受测试客户端连接失败阻塞。
