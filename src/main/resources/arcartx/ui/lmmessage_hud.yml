@@ -1,0 +1,88 @@
+ui:
+  match: []
+  hide:
+    - recipe_toast
+    - system_toast
+    - advancement_toast
+    - tutorial_toast
+  itemSize: "16"
+  through: "false"
+  escClose: "false"
+  background: "false"
+  closeDied: "true"
+  show: "true"
+  jei: "false"
+  level: "10"
+  screenScale: true
+  action:
+    open: |-
+      var.hudVisible = 'false'
+      var.hudTitle = 'LmMessage'
+      var.hudChannel = '-'
+      var.hudMessage = '-'
+  packetHandler:
+    hud: |-
+      var.hudVisible = packet['fixedVariables']['hudVisible']
+      var.hudTitle = packet['summary']['title']
+      var.hudChannel = packet['fixedVariables']['hudChannel']
+      var.hudMessage = packet['fixedVariables']['hudMessage']
+  isHud: "true"
+  defaultOpen: "false"
+controls:
+  card:
+    type: Texture
+    attribute:
+      visible: "var.hudVisible == 'true'"
+      x: Screen.getWidth()-312
+      y: 16
+      z: "8"
+      width: "292"
+      height: "70"
+      normal: ~24,30,38
+      hover: ~36,46,56
+  accent:
+    type: Texture
+    attribute:
+      visible: "var.hudVisible == 'true'"
+      x: Screen.getWidth()-312
+      y: 16
+      z: "9"
+      width: "6"
+      height: "70"
+      normal: ~84,176,142
+      hover: ~108,202,164
+  title:
+    type: Text
+    attribute:
+      visible: "var.hudVisible == 'true'"
+      x: Screen.getWidth()-292
+      y: 24
+      z: "10"
+      texts: "var.hudTitle"
+      alignment: ~left
+      shadow: true
+      scale: "0.95"
+  channel:
+    type: Text
+    attribute:
+      visible: "var.hudVisible == 'true'"
+      x: Screen.getWidth()-32
+      y: 25
+      z: "10"
+      texts: "var.hudChannel"
+      alignment: ~right
+      shadow: true
+      scale: "0.62"
+  message:
+    type: Text
+    attribute:
+      visible: "var.hudVisible == 'true'"
+      x: Screen.getWidth()-292
+      y: 48
+      z: "10"
+      texts: "var.hudMessage"
+      alignment: ~left
+      shadow: true
+      scale: "0.8"
+template: {}
+tasks: {}

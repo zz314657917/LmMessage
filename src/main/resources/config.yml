@@ -1,0 +1,42 @@
+debug: false
+
+player-chat:
+  default-channel: "default"
+  source: "LmMessage"
+
+arcartx:
+  chat-ui-id: "LmMessage:chat"
+  hud-ui-id: "LmMessage:hud"
+  chat-resource: "arcartx/ui/lmmessage_chat.yml"
+  hud-resource: "arcartx/ui/lmmessage_hud.yml"
+  auto-open-chat-on-join: true
+  hud-visible-ticks: 80
+
+rules:
+  execute-actions-on-playerchat-events: false
+  message-rules:
+    - name: "example-prefix"
+      enabled: false
+      start: "[提示]"
+      replacePrefix: "[提示]"
+      channel: "notice"
+      sound: "ENTITY_EXPERIENCE_ORB_PICKUP"
+      cancelOriginal: true
+      commands: []
+  action-rules:
+    - name: "example-action"
+      enabled: false
+      contain: "[执行]"
+      channel: "action"
+      sound: "BLOCK_NOTE_BLOCK_PLING"
+      cancelOriginal: true
+      commands:
+        - "console:say {player} triggered {split0}"
+
+security:
+  allowed-command-prefixes:
+    - "console"
+    - "player"
+    - "op"
+  enable-op-prefix: false
+  log-command-actions: true

@@ -1,0 +1,17 @@
+.gradle/
+build/
+out/
+target/
+
+*.class
+*.log
+*.tmp
+*.bak
+*.swp
+
+.idea/
+*.iml
+
+run/
+logs/
+crash-reports/

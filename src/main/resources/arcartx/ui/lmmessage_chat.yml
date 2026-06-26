@@ -1,0 +1,190 @@
+ui:
+  match: []
+  hide:
+    - recipe_toast
+    - system_toast
+    - advancement_toast
+    - tutorial_toast
+  itemSize: "16"
+  through: "false"
+  escClose: "true"
+  background: "true"
+  closeDied: "true"
+  show: "true"
+  jei: "false"
+  level: "10"
+  screenScale: true
+  action:
+    open: |-
+      var.chatInputValue = ''
+      var.chatTitle = 'LmMessage'
+      var.chatStatus = 'PlayerChat backend'
+      var.chatMessage0 = 'AX chat frontend ready.'
+      var.chatMessage1 = ''
+      var.chatMessage2 = ''
+      var.chatMessage3 = ''
+      var.chatMessage4 = ''
+      var.chatMessage5 = ''
+      var.chatMessage6 = ''
+      var.chatMessage7 = ''
+  packetHandler:
+    state: |-
+      var.chatTitle = packet['summary']['title']
+      var.chatStatus = packet['summary']['status']
+      var.chatMessage0 = packet['fixedVariables']['chatMessage0']
+      var.chatMessage1 = packet['fixedVariables']['chatMessage1']
+      var.chatMessage2 = packet['fixedVariables']['chatMessage2']
+      var.chatMessage3 = packet['fixedVariables']['chatMessage3']
+      var.chatMessage4 = packet['fixedVariables']['chatMessage4']
+      var.chatMessage5 = packet['fixedVariables']['chatMessage5']
+      var.chatMessage6 = packet['fixedVariables']['chatMessage6']
+      var.chatMessage7 = packet['fixedVariables']['chatMessage7']
+    status: |-
+      var.chatStatus = packet
+  isHud: "false"
+  defaultOpen: "false"
+controls:
+  adaptive:
+    type: adaptive
+    attribute:
+      point: ~middle_center
+      width: 854
+      height: 480
+    children:
+      frame:
+        type: Texture
+        attribute:
+          x: 120
+          y: 52
+          z: "0"
+          width: "614"
+          height: "348"
+          normal: ~18,22,28
+          hover: ~18,22,28
+      header:
+        type: Texture
+        attribute:
+          x: 120
+          y: 52
+          z: "1"
+          width: "614"
+          height: "42"
+          normal: ~32,39,48
+          hover: ~34,43,52
+      accent:
+        type: Texture
+        attribute:
+          x: 120
+          y: 52
+          z: "2"
+          width: "614"
+          height: "3"
+          normal: ~84,176,142
+          hover: ~108,202,164
+      title:
+        type: Text
+        attribute:
+          x: 142
+          y: 66
+          z: "5"
+          texts: "var.chatTitle"
+          alignment: ~left
+          shadow: true
+          scale: "1"
+      status:
+        type: Text
+        attribute:
+          x: 710
+          y: 68
+          z: "5"
+          texts: "var.chatStatus"
+          alignment: ~right
+          shadow: true
+          scale: "0.7"
+      message0:
+        type: Text
+        attribute: { x: 142, y: 112, z: "5", texts: "var.chatMessage0", alignment: ~left, shadow: true, scale: "0.78" }
+      message1:
+        type: Text
+        attribute: { x: 142, y: 140, z: "5", texts: "var.chatMessage1", alignment: ~left, shadow: true, scale: "0.78" }
+      message2:
+        type: Text
+        attribute: { x: 142, y: 168, z: "5", texts: "var.chatMessage2", alignment: ~left, shadow: true, scale: "0.78" }
+      message3:
+        type: Text
+        attribute: { x: 142, y: 196, z: "5", texts: "var.chatMessage3", alignment: ~left, shadow: true, scale: "0.78" }
+      message4:
+        type: Text
+        attribute: { x: 142, y: 224, z: "5", texts: "var.chatMessage4", alignment: ~left, shadow: true, scale: "0.78" }
+      message5:
+        type: Text
+        attribute: { x: 142, y: 252, z: "5", texts: "var.chatMessage5", alignment: ~left, shadow: true, scale: "0.78" }
+      message6:
+        type: Text
+        attribute: { x: 142, y: 280, z: "5", texts: "var.chatMessage6", alignment: ~left, shadow: true, scale: "0.78" }
+      message7:
+        type: Text
+        attribute: { x: 142, y: 308, z: "5", texts: "var.chatMessage7", alignment: ~left, shadow: true, scale: "0.78" }
+      input_panel:
+        type: Texture
+        attribute:
+          x: 142
+          y: 354
+          z: "4"
+          width: "456"
+          height: "24"
+          normal: ~26,38,46
+          hover: ~30,44,54
+      chat_input:
+        type: TextBox
+        val: "chatInput"
+        attribute:
+          x: 152
+          y: 360
+          z: "8"
+          width: "430"
+          height: "12"
+          length: "180"
+          editable: true
+          emptyText: "输入聊天消息"
+          canLoseFocus: true
+          background: ~0,0,0,0
+          fontSize: "8"
+        action:
+          create: |-
+            self.setFocus(true)
+          click: |-
+            self.setFocus(true)
+          textChange: |-
+            var.chatInputValue = self.getContent()
+            Packet.send('lmmessage_chat_draft', 'chat_input=' + var.chatInputValue)
+          keyRelease: |-
+            var.chatInputValue = self.getContent()
+      send_button:
+        type: Texture
+        attribute:
+          x: 614
+          y: 354
+          z: "8"
+          width: "96"
+          height: "24"
+          normal: ~40,140,80
+          hover: ~70,180,110
+      send_label:
+        type: Text
+        attribute:
+          x: 662
+          y: 362
+          z: "10"
+          texts:
+            - ~&f发送
+          alignment: ~center
+          shadow: true
+          scale: "1"
+        action:
+          click: |-
+            Packet.send('lmmessage_chat_submit', 'chat_input=' + var.chatInputValue)
+            val.chatInput.setContent('')
+            var.chatInputValue = ''
+template: {}
+tasks: {}

@@ -1,0 +1,35 @@
+name: LmMessage
+version: ${version}
+main: com.lmmessage.LmMessagePlugin
+api-version: "1.20"
+depend:
+  - PlayerChat
+softdepend:
+  - ArcartX
+  - ArcartXPlugin
+  - ProtocolLib
+authors:
+  - LM
+description: AX chat frontend and HUD rule layer backed by PlayerChat.
+
+commands:
+  lmmessage:
+    description: LmMessage management command.
+    usage: /lmmessage <reload|debug|open|test>
+
+permissions:
+  lmmessage.admin:
+    description: Allows using LmMessage admin commands.
+    default: op
+  lmmessage.reload:
+    description: Allows reloading LmMessage.
+    default: op
+  lmmessage.debug:
+    description: Allows viewing LmMessage diagnostics.
+    default: op
+  lmmessage.test:
+    description: Allows sending test AX chat/HUD packets.
+    default: op
+  lmmessage.open:
+    description: Allows opening the AX chat UI manually.
+    default: true
