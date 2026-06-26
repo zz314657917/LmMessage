@@ -13,7 +13,13 @@ java {
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
-    compileOnly(files("F:/360下载/PlayerChat-3.4.0.jar"))
+    val playerChatJar = providers.gradleProperty("playerChatJar")
+        .orElse(providers.environmentVariable("PLAYERCHAT_JAR"))
+    if (playerChatJar.isPresent) {
+        compileOnly(files(playerChatJar.get()))
+    } else {
+        logger.warn("PlayerChat API jar not configured; set -PplayerChatJar=<path> or PLAYERCHAT_JAR for local builds.")
+    }
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

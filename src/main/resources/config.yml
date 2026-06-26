@@ -37,6 +37,14 @@ security:
   allowed-command-prefixes:
     - "console"
     - "player"
-    - "op"
+  # op: 动作已在代码层永久禁用。高权限动作请使用 console: 并保持规则受控。
   enable-op-prefix: false
-  log-command-actions: true
+  log-command-actions: false
+  max-message-chars: 512
+  max-message-bytes: 1024
+  max-split-tokens: 32
+  max-rules: 100
+  max-trigger-length: 64
+  max-action-commands-per-rule: 5
+  max-command-length: 256
+  max-packet-items: 8

@@ -26,21 +26,34 @@ final class CommandActionParserTest {
     }
 
     @Test
-    void rejectsDisabledOpPrefix() {
+    void rejectsOpPrefixPermanently() {
         CommandActionParseResult result = parser.parse(
                 "op:gamemode creative",
                 allowed("console", "player", "op"),
-                false
+                true
         );
 
         assertFalse(result.accepted());
-        assertEquals("op command prefix is disabled", result.rejectionReason());
+        assertEquals("op command prefix is permanently disabled", result.rejectionReason());
     }
 
     @Test
     void rejectsUnknownPrefixAndLineBreaks() {
         assertFalse(parser.parse("shell:whoami", allowed("console"), true).accepted());
         assertFalse(parser.parse("console:say hi\nstop", allowed("console"), true).accepted());
+    }
+
+    @Test
+    void rejectsCommandOverBudget() {
+        CommandActionParseResult result = parser.parse(
+                "console:say 123456",
+                allowed("console"),
+                false,
+                8
+        );
+
+        assertFalse(result.accepted());
+        assertEquals("command exceeds max length", result.rejectionReason());
     }
 
     private Set<String> allowed(String... prefixes) {

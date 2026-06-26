@@ -11,6 +11,16 @@ public final class RuleEngine {
             List<RuleDefinition> messageRules,
             List<RuleDefinition> actionRules
     ) {
+        return evaluate(playerName, message, messageRules, actionRules, RuleVariables.DEFAULT_MAX_SPLIT_TOKENS);
+    }
+
+    public RuleEvaluationResult evaluate(
+            String playerName,
+            String message,
+            List<RuleDefinition> messageRules,
+            List<RuleDefinition> actionRules,
+            int maxSplitTokens
+    ) {
         String original = message == null ? "" : message;
         String output = original;
         List<RuleMatch> matches = new ArrayList<RuleMatch>();
@@ -21,7 +31,7 @@ public final class RuleEngine {
                 continue;
             }
             output = rule.applyReplacement(output);
-            RuleVariables variables = RuleVariables.create(playerName, original, output);
+            RuleVariables variables = RuleVariables.create(playerName, original, output, maxSplitTokens);
             matches.add(new RuleMatch(rule, output, variables));
             cancelOriginal = cancelOriginal || rule.cancelOriginal();
             break;
@@ -31,12 +41,12 @@ public final class RuleEngine {
             if (!rule.matches(original)) {
                 continue;
             }
-            RuleVariables variables = RuleVariables.create(playerName, original, output);
+            RuleVariables variables = RuleVariables.create(playerName, original, output, maxSplitTokens);
             matches.add(new RuleMatch(rule, output, variables));
             cancelOriginal = cancelOriginal || rule.cancelOriginal();
         }
 
-        RuleVariables variables = RuleVariables.create(playerName, original, output);
+        RuleVariables variables = RuleVariables.create(playerName, original, output, maxSplitTokens);
         return new RuleEvaluationResult(original, output, cancelOriginal, matches, variables);
     }
 

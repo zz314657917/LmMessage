@@ -26,6 +26,25 @@ public final class LmMessageConfigLoader {
         plugin.saveDefaultConfig();
         plugin.reloadConfig();
         boolean debug = plugin.getConfig().getBoolean("debug", false);
+        SecuritySettings securitySettings = new SecuritySettings(
+                loadAllowedPrefixes(),
+                plugin.getConfig().getBoolean("security.enable-op-prefix", false),
+                plugin.getConfig().getBoolean("security.log-command-actions", false),
+                plugin.getConfig().getInt("security.max-message-chars", SecuritySettings.DEFAULT_MAX_MESSAGE_CHARS),
+                plugin.getConfig().getInt("security.max-message-bytes", SecuritySettings.DEFAULT_MAX_MESSAGE_BYTES),
+                plugin.getConfig().getInt("security.max-split-tokens", SecuritySettings.DEFAULT_MAX_SPLIT_TOKENS),
+                plugin.getConfig().getInt("security.max-rules", SecuritySettings.DEFAULT_MAX_RULES),
+                plugin.getConfig().getInt("security.max-trigger-length", SecuritySettings.DEFAULT_MAX_TRIGGER_LENGTH),
+                plugin.getConfig().getInt(
+                        "security.max-action-commands-per-rule",
+                        SecuritySettings.DEFAULT_MAX_ACTION_COMMANDS_PER_RULE
+                ),
+                plugin.getConfig().getInt("security.max-command-length", SecuritySettings.DEFAULT_MAX_COMMAND_LENGTH),
+                plugin.getConfig().getInt("security.max-packet-items", SecuritySettings.DEFAULT_MAX_PACKET_ITEMS)
+        );
+        if (plugin.getConfig().getBoolean("security.enable-op-prefix", false)) {
+            logger.warning("security.enable-op-prefix 已废弃且不会生效；LmMessage 已永久禁用 op: 动作。");
+        }
         PlayerChatSettings playerChatSettings = new PlayerChatSettings(
                 plugin.getConfig().getString("player-chat.default-channel", "default"),
                 plugin.getConfig().getString("player-chat.source", "LmMessage")
@@ -36,22 +55,24 @@ public final class LmMessageConfigLoader {
                 plugin.getConfig().getString("arcartx.chat-resource", "arcartx/ui/lmmessage_chat.yml"),
                 plugin.getConfig().getString("arcartx.hud-resource", "arcartx/ui/lmmessage_hud.yml"),
                 plugin.getConfig().getBoolean("arcartx.auto-open-chat-on-join", true),
-                plugin.getConfig().getInt("arcartx.hud-visible-ticks", 80)
+                plugin.getConfig().getInt("arcartx.hud-visible-ticks", 80),
+                securitySettings.maxMessageChars(),
+                securitySettings.maxPacketItems()
         );
         RuleSettings ruleSettings = new RuleSettings(
-                loadRules("rules.message-rules", RuleTriggerType.START),
-                loadRules("rules.action-rules", RuleTriggerType.CONTAIN),
+                loadRules("rules.message-rules", RuleTriggerType.START, securitySettings, false),
+                loadRules("rules.action-rules", RuleTriggerType.CONTAIN, securitySettings, true),
                 plugin.getConfig().getBoolean("rules.execute-actions-on-playerchat-events", false)
-        );
-        SecuritySettings securitySettings = new SecuritySettings(
-                loadAllowedPrefixes(),
-                plugin.getConfig().getBoolean("security.enable-op-prefix", false),
-                plugin.getConfig().getBoolean("security.log-command-actions", true)
         );
         return new LmMessageSettings(debug, playerChatSettings, arcartXSettings, ruleSettings, securitySettings);
     }
 
-    private List<RuleDefinition> loadRules(String path, RuleTriggerType triggerType) {
+    private List<RuleDefinition> loadRules(
+            String path,
+            RuleTriggerType triggerType,
+            SecuritySettings securitySettings,
+            boolean actionRule
+    ) {
         List<RuleDefinition> rules = new ArrayList<RuleDefinition>();
         List<Map<?, ?>> rawList = plugin.getConfig().getMapList(path);
         if (rawList == null || rawList.isEmpty()) {
@@ -60,10 +81,18 @@ public final class LmMessageConfigLoader {
         int index = 0;
         for (Map<?, ?> item : rawList) {
             index++;
+            if (rules.size() >= securitySettings.maxRules()) {
+                logger.warning("忽略超出数量上限的规则: path=" + path + ", max=" + securitySettings.maxRules());
+                break;
+            }
             Map<String, Object> section = normalizeMap(item);
             String triggerText = triggerType == RuleTriggerType.START
                     ? stringValue(section, "start", "")
                     : stringValue(section, "contain", "");
+            if (triggerText.length() > securitySettings.maxTriggerLength()) {
+                logger.warning("忽略触发文本过长规则: " + stringValue(section, "name", path + "#" + index));
+                continue;
+            }
             RuleDefinition rule = RuleDefinition.builder(triggerType)
                     .name(stringValue(section, "name", path + "#" + index))
                     .enabled(booleanValue(section, "enabled", true))
@@ -72,7 +101,12 @@ public final class LmMessageConfigLoader {
                     .channel(stringValue(section, "channel", ""))
                     .sound(stringValue(section, "sound", ""))
                     .cancelOriginal(booleanValue(section, "cancelOriginal", false))
-                    .commands(stringListValue(section, "commands"))
+                    .commands(stringListValue(
+                            section,
+                            "commands",
+                            actionRule ? securitySettings.maxActionCommandsPerRule() : 0,
+                            securitySettings.maxCommandLength()
+                    ))
                     .build();
             if (!rule.isValid()) {
                 logger.warning("忽略空触发文本规则: " + rule.name());
@@ -112,16 +146,29 @@ public final class LmMessageConfigLoader {
         return Boolean.parseBoolean(String.valueOf(value));
     }
 
-    private List<String> stringListValue(Map<String, Object> section, String key) {
+    private List<String> stringListValue(Map<String, Object> section, String key, int maxItems, int maxLength) {
         Object value = section.get(key);
-        if (!(value instanceof Iterable<?>)) {
+        if (maxItems <= 0 || !(value instanceof Iterable<?>)) {
             return Collections.emptyList();
         }
         List<String> result = new ArrayList<String>();
         for (Object item : (Iterable<?>) value) {
-            if (item != null && !String.valueOf(item).trim().isEmpty()) {
-                result.add(String.valueOf(item).trim());
+            if (result.size() >= maxItems) {
+                logger.warning("忽略超出数量上限的规则命令: max=" + maxItems);
+                break;
             }
+            if (item == null) {
+                continue;
+            }
+            String command = String.valueOf(item).trim();
+            if (command.isEmpty()) {
+                continue;
+            }
+            if (command.length() > maxLength) {
+                logger.warning("忽略长度超限的规则命令: max=" + maxLength);
+                continue;
+            }
+            result.add(command);
         }
         return result;
     }
@@ -132,7 +179,6 @@ public final class LmMessageConfigLoader {
         if (configured.isEmpty()) {
             prefixes.add("console");
             prefixes.add("player");
-            prefixes.add("op");
             return prefixes;
         }
         prefixes.addAll(configured);

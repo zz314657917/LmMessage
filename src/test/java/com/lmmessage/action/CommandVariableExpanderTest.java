@@ -15,4 +15,13 @@ final class CommandVariableExpanderTest {
 
         assertEquals("say Steve hello_ stop", expanded);
     }
+
+    @Test
+    void limitsSplitVariables() {
+        RuleVariables variables = RuleVariables.create("Steve", "raw", "a b c d", 2);
+
+        assertEquals("a", variables.get("split0"));
+        assertEquals("b", variables.get("split1"));
+        assertEquals("", variables.get("split2"));
+    }
 }

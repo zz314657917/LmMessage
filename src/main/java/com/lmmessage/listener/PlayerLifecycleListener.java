@@ -6,6 +6,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 public final class PlayerLifecycleListener implements Listener {
     private final ArcartXMessageUiBridge uiBridge;
@@ -25,5 +26,10 @@ public final class PlayerLifecycleListener implements Listener {
         if (settings != null && settings.arcartX().autoOpenChatOnJoin()) {
             uiBridge.openChat(event.getPlayer());
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(PlayerQuitEvent event) {
+        uiBridge.clear(event.getPlayer());
     }
 }

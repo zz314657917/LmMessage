@@ -27,9 +27,8 @@ public final class PlayerChatEventListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerChannelTell(PlayerChannelTellEvent event) {
-        chatSubmissionService.handlePlayerChatEvent(
+        chatSubmissionService.handlePlayerTellEvent(
                 event.getPlayer(),
-                "tell",
                 event.getTellPlayerName(),
                 event.getOriginalMessage(),
                 true

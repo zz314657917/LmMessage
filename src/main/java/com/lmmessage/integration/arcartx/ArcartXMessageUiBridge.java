@@ -12,10 +12,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ArcartXMessageUiBridge {
     public interface SubmitHandler {
@@ -28,7 +29,7 @@ public final class ArcartXMessageUiBridge {
     private final JavaPlugin plugin;
     private final ArcartXRuntime runtime;
     private final ResourceSync resourceSync;
-    private final Map<UUID, ArrayDeque<ChatLine>> chatLines = new LinkedHashMap<UUID, ArrayDeque<ChatLine>>();
+    private final Map<UUID, ArrayDeque<ChatLine>> chatLines = new ConcurrentHashMap<UUID, ArrayDeque<ChatLine>>();
 
     private ArcartXSettings settings;
     private SubmitHandler submitHandler;
@@ -86,14 +87,26 @@ public final class ArcartXMessageUiBridge {
         if (player == null || message == null || message.trim().isEmpty()) {
             return;
         }
-        ArrayDeque<ChatLine> lines = chatLines.get(player.getUniqueId());
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(plugin, new Runnable() {
+                @Override
+                public void run() {
+                    appendChat(player, source, message);
+                }
+            });
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        ArrayDeque<ChatLine> lines = chatLines.get(playerId);
         if (lines == null) {
             lines = new ArrayDeque<ChatLine>();
-            chatLines.put(player.getUniqueId(), lines);
+            chatLines.put(playerId, lines);
         }
-        lines.addLast(new ChatLine(source, message));
-        while (lines.size() > MAX_CHAT_LINES) {
-            lines.removeFirst();
+        synchronized (lines) {
+            lines.addLast(new ChatLine(source, message));
+            while (lines.size() > MAX_CHAT_LINES) {
+                lines.removeFirst();
+            }
         }
         sendChatState(player);
     }
@@ -106,6 +119,15 @@ public final class ArcartXMessageUiBridge {
 
     public void showHud(Player player, String channel, String message) {
         if (player == null || settings == null || message == null || message.trim().isEmpty()) {
+            return;
+        }
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(plugin, new Runnable() {
+                @Override
+                public void run() {
+                    showHud(player, channel, message);
+                }
+            });
             return;
         }
         if (!runtime.open(player, settings.hudUiId())) {
@@ -161,7 +183,16 @@ public final class ArcartXMessageUiBridge {
         }
         String input = parsePacketInput(data);
         if (submitHandler != null) {
-            submitHandler.onSubmit(player, input);
+            if (Bukkit.isPrimaryThread()) {
+                submitHandler.onSubmit(player, input);
+            } else {
+                Bukkit.getScheduler().runTask(plugin, new Runnable() {
+                    @Override
+                    public void run() {
+                        submitHandler.onSubmit(player, input);
+                    }
+                });
+            }
         }
     }
 
@@ -169,19 +200,22 @@ public final class ArcartXMessageUiBridge {
         if (data == null || data.isEmpty()) {
             return "";
         }
-        for (String item : data) {
+        int maxItems = settings == null ? 8 : settings.maxPacketItems();
+        int maxInputChars = settings == null ? 512 : settings.maxMessageChars();
+        for (int index = 0; index < data.size() && index < maxItems; index++) {
+            String item = data.get(index);
             if (item == null) {
                 continue;
             }
             String trimmed = item.trim();
             if (trimmed.startsWith("chat_input=")) {
-                return trimmed.substring("chat_input=".length()).trim();
+                return limitInput(trimmed.substring("chat_input=".length()).trim(), maxInputChars);
             }
             if (trimmed.startsWith("chat_input:")) {
-                return trimmed.substring("chat_input:".length()).trim();
+                return limitInput(trimmed.substring("chat_input:".length()).trim(), maxInputChars);
             }
         }
-        return data.get(0) == null ? "" : data.get(0).trim();
+        return data.get(0) == null ? "" : limitInput(data.get(0).trim(), maxInputChars);
     }
 
     private void sendChatState(Player player) {
@@ -213,7 +247,15 @@ public final class ArcartXMessageUiBridge {
         if (lines == null || lines.isEmpty()) {
             return Collections.emptyList();
         }
-        return new ArrayList<ChatLine>(lines);
+        synchronized (lines) {
+            return new ArrayList<ChatLine>(lines);
+        }
+    }
+
+    public void clear(Player player) {
+        if (player != null) {
+            chatLines.remove(player.getUniqueId());
+        }
     }
 
     private void scheduleHudHide(final Player player) {
@@ -237,5 +279,12 @@ public final class ArcartXMessageUiBridge {
                 runtime.sendPacket(player, settings.hudUiId(), "hud", packet);
             }
         }, settings.hudVisibleTicks());
+    }
+
+    private String limitInput(String input, int maxInputChars) {
+        if (input == null || input.length() <= maxInputChars) {
+            return input == null ? "" : input;
+        }
+        return input.substring(0, maxInputChars);
     }
 }

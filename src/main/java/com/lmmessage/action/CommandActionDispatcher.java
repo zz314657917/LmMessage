@@ -7,6 +7,9 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -29,24 +32,35 @@ public final class CommandActionDispatcher {
             CommandActionParseResult parsed = parser.parse(
                     rawCommand,
                     securitySettings.allowedCommandPrefixes(),
-                    securitySettings.opPrefixEnabled()
+                    securitySettings.opPrefixEnabled(),
+                    securitySettings.maxCommandLength()
             );
             if (!parsed.accepted()) {
-                logger.warning("拒绝规则命令: player=" + player.getName()
+                logger.warning("拒绝规则命令: playerUuid=" + player.getUniqueId()
                         + ", reason=" + parsed.rejectionReason()
-                        + ", raw=" + rawCommand);
+                        + ", rawLength=" + lengthOf(rawCommand)
+                        + ", rawHash=" + hash(rawCommand));
                 continue;
             }
             CommandAction action = parsed.action();
             String command = expander.expand(action.command(), variables);
             if (command.isEmpty()) {
-                logger.warning("拒绝空规则命令: player=" + player.getName() + ", raw=" + rawCommand);
+                logger.warning("拒绝空规则命令: playerUuid=" + player.getUniqueId()
+                        + ", rawHash=" + hash(rawCommand));
+                continue;
+            }
+            if (command.length() > securitySettings.maxCommandLength()) {
+                logger.warning("拒绝长度超限规则命令: playerUuid=" + player.getUniqueId()
+                        + ", prefix=" + action.prefix().configName()
+                        + ", commandLength=" + command.length()
+                        + ", commandHash=" + hash(command));
                 continue;
             }
             if (securitySettings.logCommandActions()) {
-                logger.info("执行规则命令: player=" + player.getName()
+                logger.info("执行规则命令: playerUuid=" + player.getUniqueId()
                         + ", prefix=" + action.prefix().configName()
-                        + ", command=" + command);
+                        + ", commandLength=" + command.length()
+                        + ", commandHash=" + hash(command));
             }
             execute(player, action.prefix(), command);
         }
@@ -71,20 +85,27 @@ public final class CommandActionDispatcher {
             player.performCommand(command);
             return;
         }
-        executeAsTemporaryOp(player, command);
+        logger.warning("拒绝规则命令: playerUuid=" + player.getUniqueId()
+                + ", reason=op command prefix is permanently disabled"
+                + ", commandHash=" + hash(command));
     }
 
-    private void executeAsTemporaryOp(Player player, String command) {
-        boolean wasOp = player.isOp();
+    private int lengthOf(String value) {
+        return value == null ? 0 : value.length();
+    }
+
+    private String hash(String value) {
+        String safeValue = value == null ? "" : value;
         try {
-            if (!wasOp) {
-                player.setOp(true);
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(safeValue.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(16);
+            for (int index = 0; index < hashed.length && index < 8; index++) {
+                builder.append(String.format("%02x", hashed[index]));
             }
-            player.performCommand(command);
-        } finally {
-            if (!wasOp && player.isOnline()) {
-                player.setOp(false);
-            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            return Integer.toHexString(safeValue.hashCode());
         }
     }
 }

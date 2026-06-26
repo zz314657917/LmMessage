@@ -8,9 +8,11 @@ import com.lmmessage.rule.RuleEvaluationResult;
 import com.lmmessage.rule.RuleEngine;
 import com.lmmessage.rule.RuleMatch;
 import org.bukkit.Sound;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.logging.Logger;
 
@@ -46,7 +48,7 @@ public final class ChatSubmissionService {
         if (player == null) {
             return;
         }
-        String message = input == null ? "" : input.trim();
+        String message = sanitizeInput(player, input, "ax");
         if (message.isEmpty()) {
             return;
         }
@@ -72,13 +74,40 @@ public final class ChatSubmissionService {
     }
 
     public void handlePlayerChatEvent(Player player, String channel, String source, String message, boolean allowActions) {
-        if (player == null || message == null || message.trim().isEmpty()) {
+        if (player == null) {
+            return;
+        }
+        String safeMessage = sanitizeInput(player, message, "playerchat");
+        if (safeMessage.isEmpty()) {
             return;
         }
         String displaySource = source == null || source.trim().isEmpty() ? channel : source;
-        uiBridge.broadcastChat(displaySource, message);
-        RuleEvaluationResult result = evaluate(player, message);
+        RuleEvaluationResult result = evaluate(player, safeMessage);
         handleMatches(player, result, allowActions && settings.rules().executeActionsOnPlayerChatEvents());
+        if (!result.cancelOriginal()) {
+            uiBridge.broadcastChat(displaySource, result.outputMessage());
+        }
+    }
+
+    public void handlePlayerTellEvent(Player sender, String targetName, String message, boolean allowActions) {
+        if (sender == null) {
+            return;
+        }
+        String safeMessage = sanitizeInput(sender, message, "tell");
+        if (safeMessage.isEmpty()) {
+            return;
+        }
+        RuleEvaluationResult result = evaluate(sender, safeMessage);
+        handleMatches(sender, result, allowActions && settings.rules().executeActionsOnPlayerChatEvents());
+        if (result.cancelOriginal()) {
+            return;
+        }
+        String displaySource = targetName == null || targetName.trim().isEmpty() ? "tell" : targetName.trim();
+        uiBridge.appendChat(sender, displaySource, result.outputMessage());
+        Player target = Bukkit.getPlayerExact(displaySource);
+        if (target != null && target.isOnline() && !target.getUniqueId().equals(sender.getUniqueId())) {
+            uiBridge.appendChat(target, sender.getName(), result.outputMessage());
+        }
     }
 
     private RuleEvaluationResult evaluate(Player player, String message) {
@@ -86,7 +115,8 @@ public final class ChatSubmissionService {
                 player.getName(),
                 message,
                 settings.rules().messageRules(),
-                settings.rules().actionRules()
+                settings.rules().actionRules(),
+                settings.security().maxSplitTokens()
         );
     }
 
@@ -124,5 +154,21 @@ public final class ChatSubmissionService {
             logger.warning("播放声音失败: player=" + player.getName()
                     + ", sound=" + soundName + ", reason=" + throwable.getMessage());
         }
+    }
+
+    private String sanitizeInput(Player player, String input, String source) {
+        String message = input == null ? "" : input.trim();
+        if (message.isEmpty()) {
+            return "";
+        }
+        if (message.length() > settings.security().maxMessageChars()
+                || message.getBytes(StandardCharsets.UTF_8).length > settings.security().maxMessageBytes()) {
+            logger.warning("拒绝超长消息: playerUuid=" + player.getUniqueId()
+                    + ", source=" + source
+                    + ", chars=" + message.length()
+                    + ", maxChars=" + settings.security().maxMessageChars());
+            return "";
+        }
+        return message;
     }
 }
