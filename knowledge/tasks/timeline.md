@@ -1,5 +1,15 @@
 # Timeline
 
+## 2026-06-27 02:50 +08:00 - 首轮 QA 与测试服加载验证
+
+- 当前阶段：代码级验证和服务端加载 smoke 通过；客户端 AX 画面与聊天提交链路仍受测试客户端连接失败阻塞。
+- 本段重点：`gradle test/build` 通过；dev-stack MySQL/Redis preflight 通过；`LmMessage` 在 `arcartx-dev-1201` 服务端成功启用，AX chat/hud 注册为 true。
+- 已完成：jar 已部署到 `F:/minecraft/dev/arcartx-1201-dev-server/plugins/`；BlackBoxPro server-only smoke 启动到 `Done`；测试环境 stop 后端口释放。
+- 关键决策：当前 QA 结论只覆盖代码级和服务端加载，不扩大成 AX 客户端渲染或 PlayerChat 跨服业务通过。
+- 验证记录：`gradle test --no-daemon` PASS；`gradle build --no-daemon` PASS；`Test-LmDevStack.ps1` PASS；`Invoke-TestCell1201.ps1 -Mode ensure -NoAutoStartBot` 服务端 ready，日志显示 `LmMessage enabled` 与 `ArcartX UI registration complete: chat=true, hud=true`。
+- 遗留问题：BlackBoxPro 客户端 `connect_to_server localhost:25715` 返回 `DisconnectedScreen`，服务端记录 `bot_player ... lost connection: Disconnected`；因此 `/lmmessage open/test`、AX HUD 截图、聊天提交和跨服规则未验证。
+- 下一步：先修复测试客户端登录链路 -> 再跑 `/lmmessage debug/open/test` 和 AX packet/chat submit -> 最后补 PlayerChat 跨服业务验证。
+
 ## 2026-06-27 02:00 +08:00 - AX + PlayerChat 首版实现
 
 - 当前阶段：代码级实现完成，P/G/E 状态进入 `qa`，等待真实 1.20.1 + ArcartX + PlayerChat 运行态验证。
